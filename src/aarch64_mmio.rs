@@ -9,7 +9,7 @@ use zerocopy::{FromBytes, Immutable, IntoBytes};
 macro_rules! asm_mmio {
     ($t:ty, $read_name:ident, $read_assembly:literal, $write_name:ident, $write_assembly:literal) => {
         unsafe fn $read_name(ptr: *const $t) -> $t {
-            let value;
+            let value: $t;
             unsafe {
                 core::arch::asm!(
                     $read_assembly,
@@ -17,14 +17,14 @@ macro_rules! asm_mmio {
                     ptr = in(reg) ptr,
                 );
             }
-            value
+            value.to_le()
         }
 
         unsafe fn $write_name(ptr: *mut $t, value: $t) {
             unsafe {
                 core::arch::asm!(
                     $write_assembly,
-                    value = in(reg) value,
+                    value = in(reg) value.to_le(),
                     ptr = in(reg) ptr,
                 );
             }
