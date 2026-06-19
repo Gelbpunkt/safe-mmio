@@ -11,6 +11,7 @@
 
 #[cfg(all(target_arch = "aarch64", not(feature = "custom-mmio")))]
 mod aarch64_mmio;
+mod backend;
 #[cfg(feature = "custom-mmio")]
 pub mod custom_mmio;
 pub mod fields;
