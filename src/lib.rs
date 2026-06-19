@@ -12,8 +12,11 @@ mod backend;
 pub mod fields;
 mod physical;
 
+use crate::backend::Ops;
 #[cfg(feature = "custom-mmio")]
 pub use crate::backend::mmio_ops::MmioOps;
+#[cfg(not(feature = "custom-mmio"))]
+use crate::backend::mmio_ops::MmioOps;
 use crate::fields::{ReadOnly, ReadPure, ReadPureWrite, ReadWrite, WriteOnly};
 use core::{
     array,
@@ -942,6 +945,57 @@ impl<'a, T> Iterator for SharedMmioPointerIterator<'a, T> {
 
     fn size_hint(&self) -> (usize, Option<usize>) {
         (self.tail.len(), Some(self.tail.len()))
+    }
+}
+
+impl<T: FromBytes + IntoBytes> UniqueMmioPointer<'_, T> {
+    /// Performs an MMIO read and returns the value.
+    ///
+    /// If `T` is exactly 1, 2, 4 or 8 bytes long and naturally aligned then this will be a single
+    /// operation. Otherwise it will be split into several, reading chunks as large as possible.
+    ///
+    /// Note that this takes `&mut self` rather than `&self` because an MMIO read may cause
+    /// side-effects that change the state of the device.
+    ///
+    /// # Safety
+    ///
+    /// This field must be safe to perform an MMIO read from.
+    pub unsafe fn read_unsafe(&mut self) -> T {
+        // SAFETY: self.regs is always a valid and unique pointer to MMIO address space.
+        unsafe { Ops::read(self.regs) }
+    }
+}
+
+impl<T: Immutable + IntoBytes> UniqueMmioPointer<'_, T> {
+    /// Performs an MMIO write of the given value.
+    ///
+    /// If `T` is exactly 1, 2, 4 or 8 bytes long and naturally aligned then this will be a single
+    /// operation. Otherwise it will be split into several, reading chunks as large as possible.
+    ///
+    /// # Safety
+    ///
+    /// This field must be safe to perform an MMIO write to.
+    pub unsafe fn write_unsafe(&mut self, value: T) {
+        // SAFETY: self.regs is always a valid and unique pointer to MMIO address space.
+        unsafe {
+            Ops::write(self.regs, value);
+        }
+    }
+}
+
+impl<T: FromBytes + IntoBytes> SharedMmioPointer<'_, T> {
+    /// Performs an MMIO read and returns the value.
+    ///
+    /// If `T` is exactly 1, 2, 4 or 8 bytes long and naturally aligned then this will be a single
+    /// operation. Otherwise it will be split into several, reading chunks as large as possible.
+    ///
+    /// # Safety
+    ///
+    /// This field must be safe to perform an MMIO read from, and doing so must not cause any
+    /// side-effects.
+    pub unsafe fn read_unsafe(&self) -> T {
+        // SAFETY: self.regs is always a valid and unique pointer to MMIO address space.
+        unsafe { Ops::read(self.regs) }
     }
 }
 
