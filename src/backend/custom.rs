@@ -11,7 +11,7 @@
 //! # Example
 //!
 //! ```
-//! use safe_mmio::{custom_mmio::MmioOps, set_mmio_ops};
+//! use safe_mmio::{MmioOps, set_mmio_ops};
 //!
 //! struct MyMmioBackend;
 //!
@@ -44,7 +44,7 @@
 //!
 //! set_mmio_ops!(MyMmioBackend);
 //! ```
-pub use crate::backend::mmio_ops::MmioOps;
+use crate::backend::mmio_ops::MmioOps;
 use crate::{SharedMmioPointer, UniqueMmioPointer};
 use zerocopy::{FromBytes, Immutable, IntoBytes};
 
@@ -80,49 +80,49 @@ macro_rules! set_mmio_ops {
         #[unsafe(no_mangle)]
         unsafe fn __safe_mmio_read_u8(src: *const u8) -> u8 {
             // SAFETY: Caller guarantees src is valid and aligned for MMIO.
-            unsafe { <$t as $crate::custom_mmio::MmioOps>::read_u8(src) }
+            unsafe { <$t as $crate::MmioOps>::read_u8(src) }
         }
 
         #[unsafe(no_mangle)]
         unsafe fn __safe_mmio_read_u16(src: *const u16) -> u16 {
             // SAFETY: Caller guarantees src is valid and aligned for MMIO.
-            unsafe { <$t as $crate::custom_mmio::MmioOps>::read_u16(src) }
+            unsafe { <$t as $crate::MmioOps>::read_u16(src) }
         }
 
         #[unsafe(no_mangle)]
         unsafe fn __safe_mmio_read_u32(src: *const u32) -> u32 {
             // SAFETY: Caller guarantees src is valid and aligned for MMIO.
-            unsafe { <$t as $crate::custom_mmio::MmioOps>::read_u32(src) }
+            unsafe { <$t as $crate::MmioOps>::read_u32(src) }
         }
 
         #[unsafe(no_mangle)]
         unsafe fn __safe_mmio_read_u64(src: *const u64) -> u64 {
             // SAFETY: Caller guarantees src is valid and aligned for MMIO.
-            unsafe { <$t as $crate::custom_mmio::MmioOps>::read_u64(src) }
+            unsafe { <$t as $crate::MmioOps>::read_u64(src) }
         }
 
         #[unsafe(no_mangle)]
         unsafe fn __safe_mmio_write_u8(dst: *mut u8, value: u8) {
             // SAFETY: Caller guarantees dst is valid and aligned for MMIO.
-            unsafe { <$t as $crate::custom_mmio::MmioOps>::write_u8(dst, value) }
+            unsafe { <$t as $crate::MmioOps>::write_u8(dst, value) }
         }
 
         #[unsafe(no_mangle)]
         unsafe fn __safe_mmio_write_u16(dst: *mut u16, value: u16) {
             // SAFETY: Caller guarantees dst is valid and aligned for MMIO.
-            unsafe { <$t as $crate::custom_mmio::MmioOps>::write_u16(dst, value) }
+            unsafe { <$t as $crate::MmioOps>::write_u16(dst, value) }
         }
 
         #[unsafe(no_mangle)]
         unsafe fn __safe_mmio_write_u32(dst: *mut u32, value: u32) {
             // SAFETY: Caller guarantees dst is valid and aligned for MMIO.
-            unsafe { <$t as $crate::custom_mmio::MmioOps>::write_u32(dst, value) }
+            unsafe { <$t as $crate::MmioOps>::write_u32(dst, value) }
         }
 
         #[unsafe(no_mangle)]
         unsafe fn __safe_mmio_write_u64(dst: *mut u64, value: u64) {
             // SAFETY: Caller guarantees dst is valid and aligned for MMIO.
-            unsafe { <$t as $crate::custom_mmio::MmioOps>::write_u64(dst, value) }
+            unsafe { <$t as $crate::MmioOps>::write_u64(dst, value) }
         }
     };
 }
