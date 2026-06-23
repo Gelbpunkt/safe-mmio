@@ -103,20 +103,29 @@ pub trait MmioOps {
     ///
     /// `ptr` must be valid for MMIO reads spanning `slice.len()` bytes.
     unsafe fn read_slice(ptr: NonNull<u8>, slice: &mut [u8]) {
-        if let Some((first, rest)) = slice.split_at_mut_checked(8) {
-            // SAFETY: Caller guarantees ptr is valid for the full slice length.
+        if let Some((first, rest)) = slice.split_at_mut_checked(8)
+            && ptr.cast::<u64>().is_aligned()
+        {
+            // SAFETY: Caller guarantees ptr is valid for the full slice length and we just checked
+            // that it is properly aligned for u64.
             unsafe {
                 Self::read_u64(ptr.cast().as_ptr()).write_to(first).unwrap();
                 Self::read_slice(ptr.add(8), rest);
             }
-        } else if let Some((first, rest)) = slice.split_at_mut_checked(4) {
-            // SAFETY: Caller guarantees ptr is valid for the full slice length.
+        } else if let Some((first, rest)) = slice.split_at_mut_checked(4)
+            && ptr.cast::<u32>().is_aligned()
+        {
+            // SAFETY: Caller guarantees ptr is valid for the full slice length and we just checked
+            // that it is properly aligned for u32.
             unsafe {
                 Self::read_u32(ptr.cast().as_ptr()).write_to(first).unwrap();
                 Self::read_slice(ptr.add(4), rest);
             }
-        } else if let Some((first, rest)) = slice.split_at_mut_checked(2) {
-            // SAFETY: Caller guarantees ptr is valid for the full slice length.
+        } else if let Some((first, rest)) = slice.split_at_mut_checked(2)
+            && ptr.cast::<u16>().is_aligned()
+        {
+            // SAFETY: Caller guarantees ptr is valid for the full slice length and we just checked
+            // that it is properly aligned for u16.
             unsafe {
                 Self::read_u16(ptr.cast().as_ptr()).write_to(first).unwrap();
                 Self::read_slice(ptr.add(2), rest);
@@ -136,20 +145,29 @@ pub trait MmioOps {
     ///
     /// `ptr` must be valid for MMIO writes spanning `slice.len()` bytes.
     unsafe fn write_slice(ptr: NonNull<u8>, slice: &[u8]) {
-        if let Some((first, rest)) = slice.split_at_checked(8) {
-            // SAFETY: Caller guarantees ptr is valid for the full slice length.
+        if let Some((first, rest)) = slice.split_at_checked(8)
+            && ptr.cast::<u64>().is_aligned()
+        {
+            // SAFETY: Caller guarantees ptr is valid for the full slice length and we just checked
+            // that it is properly aligned for u64.
             unsafe {
                 Self::write_u64(ptr.cast().as_ptr(), u64::read_from_bytes(first).unwrap());
                 Self::write_slice(ptr.add(8), rest);
             }
-        } else if let Some((first, rest)) = slice.split_at_checked(4) {
-            // SAFETY: Caller guarantees ptr is valid for the full slice length.
+        } else if let Some((first, rest)) = slice.split_at_checked(4)
+            && ptr.cast::<u32>().is_aligned()
+        {
+            // SAFETY: Caller guarantees ptr is valid for the full slice length and we just checked
+            // that it is properly aligned for u32.
             unsafe {
                 Self::write_u32(ptr.cast().as_ptr(), u32::read_from_bytes(first).unwrap());
                 Self::write_slice(ptr.add(4), rest);
             }
-        } else if let Some((first, rest)) = slice.split_at_checked(2) {
-            // SAFETY: Caller guarantees ptr is valid for the full slice length.
+        } else if let Some((first, rest)) = slice.split_at_checked(2)
+            && ptr.cast::<u16>().is_aligned()
+        {
+            // SAFETY: Caller guarantees ptr is valid for the full slice length and we just checked
+            // that it is properly aligned for u16.
             unsafe {
                 Self::write_u16(ptr.cast().as_ptr(), u16::read_from_bytes(first).unwrap());
                 Self::write_slice(ptr.add(2), rest);
