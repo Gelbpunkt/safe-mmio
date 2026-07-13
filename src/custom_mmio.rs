@@ -15,7 +15,7 @@
 //!
 //! struct MyMmioBackend;
 //!
-//! unsafe impl MmioOps for MyMmioBackend {
+//! impl MmioOps for MyMmioBackend {
 //!     unsafe fn read_u8(src: *const u8) -> u8 {
 //!         src.read_volatile()
 //!     }
@@ -56,12 +56,9 @@ use core::ptr::NonNull;
 /// Per-size methods are used because MMIO access width matters at the hardware level (e.g. the
 /// GHCB protocol needs to know the exact access size for VMGEXIT calls).
 ///
-/// # Safety
-///
-/// Implementations must perform a single MMIO access of the indicated width at the given address.
 /// The pointer is guaranteed to be properly aligned for its type and to point to valid MMIO address
 /// space.
-pub unsafe trait MmioOps {
+pub trait MmioOps {
     /// Perform an 8-bit MMIO read.
     ///
     /// # Safety
@@ -359,7 +356,7 @@ mod testing {
     struct VolatileOps;
 
     // SAFETY: Each method performs a single volatile access of the indicated width.
-    unsafe impl super::MmioOps for VolatileOps {
+    impl super::MmioOps for VolatileOps {
         unsafe fn read_u8(src: *const u8) -> u8 {
             // SAFETY: Caller guarantees src is valid and aligned.
             unsafe { src.read_volatile() }

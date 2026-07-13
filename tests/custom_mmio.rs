@@ -22,7 +22,7 @@ mod custom_ops {
     struct VolatileOps;
 
     // SAFETY: Each method performs a single volatile access of the indicated width.
-    unsafe impl safe_mmio::custom_mmio::MmioOps for VolatileOps {
+    impl safe_mmio::custom_mmio::MmioOps for VolatileOps {
         unsafe fn read_u8(src: *const u8) -> u8 {
             // SAFETY: Caller guarantees src is valid and aligned.
             unsafe { src.read_volatile() }
