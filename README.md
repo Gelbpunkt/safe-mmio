@@ -103,13 +103,13 @@ Enable the feature in your `Cargo.toml`:
 
 ```toml
 [dependencies]
-safe-mmio = { version = "0.3.0", features = ["custom-mmio"] }
+safe-mmio = { version = "0.3.1", features = ["custom-mmio"] }
 ```
 
 Then implement the `MmioOps` trait and register it with `set_mmio_ops!`:
 
 ```rust
-use safe_mmio::custom_mmio::MmioOps;
+use safe_mmio::{MmioOps, set_mmio_ops};
 
 struct MyBackend;
 
@@ -125,7 +125,7 @@ unsafe impl MmioOps for MyBackend {
     unsafe fn write_u64(dst: *mut u64, value: u64) { /* ... */ }
 }
 
-safe_mmio::set_mmio_ops!(MyBackend);
+set_mmio_ops!(MyBackend);
 ```
 
 The `set_mmio_ops!` macro generates `#[no_mangle]` functions that the library resolves via
@@ -159,17 +159,17 @@ for MMIO in Rust.
    around this by using inline assembly to generate the correct instructions for MMIO reads and
    writes on aarch64.
 
-| Crate name                                                      | Last release   | Version | Avoids references | Distinguishes reads with side-effects | Works around aarch64 volatile bug | Model                               | Field projection           | Notes                                                                             |
-| --------------------------------------------------------------- | -------------- | ------- | ----------------- | ------------------------------------- | --------------------------------- | ----------------------------------- | -------------------------- | --------------------------------------------------------------------------------- |
-| safe-mmio                                                       | March 2026     | 0.3.0   | ✅                | ✅                                    | ✅                                | struct with field wrappers          | macro                      |
-| [derive-mmio](https://crates.io/crates/derive-mmio)             | September 2025 | 0.6.1   | ✅                | ✅                                    | ❌                                | struct with derive macro            | through derive macro       |
-| [volatile](https://crates.io/crates/volatile)                   | June 2024      | 0.6.1   | ✅                | ❌                                    | ❌                                | struct with derive macro            | macro or generated methods |
-| [volatile-register](https://crates.io/crates/volatile-register) | October 2023   | 0.2.2   | ❌                | ❌                                    | ❌                                | struct with field wrappers          | manual (references)        |
-| [tock-registers](https://crates.io/crates/tock-registers)       | October 2025   | 0.10.1  | ❌                | ❌                                    | ❌                                | macros to define fields and structs | manual (references)        | Also covers CPU registers, and bitfields                                          |
-| [mmio](https://crates.io/crates/mmio)                           | May 2021       | 2.1.0   | ✅                | ❌                                    | ❌                                | only deals with individual fields   | ❌                         |
-| [rumio](https://crates.io/crates/rumio)                         | March 2021     | 0.2.0   | ✅                | ❌                                    | ❌                                | macros to define fields and structs | generated methods          | Also covers CPU registers, and bitfields                                          |
-| [vcell](https://crates.io/crates/vcell)                         | January 2021   | 0.1.3   | ❌                | ❌                                    | ❌                                | plain struct                        | manual (references)        |
-| [register](https://crates.io/crates/register)                   | January 2021   | 1.0.2   | ❌                | ❌                                    | ❌                                | macros to define fields and structs | manual (references)        | Deprecated in favour of tock-registers. Also covers CPU registers, and bitfields. |
+| Crate name                                                      | Last release | Version | Avoids references | Distinguishes reads with side-effects | Works around aarch64 volatile bug | Model                               | Field projection           | Notes                                                                             |
+| --------------------------------------------------------------- | ------------ | ------- | ----------------- | ------------------------------------- | --------------------------------- | ----------------------------------- | -------------------------- | --------------------------------------------------------------------------------- |
+| safe-mmio                                                       | July 2026    | 0.3.1   | ✅                | ✅                                    | ✅                                | struct with field wrappers          | macro                      |
+| [derive-mmio](https://crates.io/crates/derive-mmio)             | July 2026    | 0.8.0   | ✅                | ✅                                    | ❌                                | struct with derive macro            | through derive macro       |
+| [volatile](https://crates.io/crates/volatile)                   | June 2024    | 0.6.1   | ✅                | ❌                                    | ❌                                | struct with derive macro            | macro or generated methods |
+| [volatile-register](https://crates.io/crates/volatile-register) | October 2023 | 0.2.2   | ❌                | ❌                                    | ❌                                | struct with field wrappers          | manual (references)        |
+| [tock-registers](https://crates.io/crates/tock-registers)       | October 2025 | 0.10.1  | ❌                | ❌                                    | ❌                                | macros to define fields and structs | manual (references)        | Also covers CPU registers, and bitfields                                          |
+| [mmio](https://crates.io/crates/mmio)                           | May 2021     | 2.1.0   | ✅                | ❌                                    | ❌                                | only deals with individual fields   | ❌                         |
+| [rumio](https://crates.io/crates/rumio)                         | March 2021   | 0.2.0   | ✅                | ❌                                    | ❌                                | macros to define fields and structs | generated methods          | Also covers CPU registers, and bitfields                                          |
+| [vcell](https://crates.io/crates/vcell)                         | January 2021 | 0.1.3   | ❌                | ❌                                    | ❌                                | plain struct                        | manual (references)        |
+| [register](https://crates.io/crates/register)                   | January 2021 | 1.0.2   | ❌                | ❌                                    | ❌                                | macros to define fields and structs | manual (references)        | Deprecated in favour of tock-registers. Also covers CPU registers, and bitfields. |
 
 ## License
 
