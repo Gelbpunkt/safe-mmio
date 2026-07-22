@@ -8,16 +8,15 @@
 #![deny(clippy::undocumented_unsafe_blocks)]
 #![deny(unsafe_op_in_unsafe_fn)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
-
-#[cfg(all(target_arch = "aarch64", not(feature = "custom-mmio")))]
-mod aarch64_mmio;
-#[cfg(feature = "custom-mmio")]
-pub mod custom_mmio;
+mod backend;
 pub mod fields;
 mod physical;
-#[cfg(all(not(target_arch = "aarch64"), not(feature = "custom-mmio")))]
-mod volatile_mmio;
 
+use crate::backend::Ops;
+#[cfg(feature = "custom-mmio")]
+pub use crate::backend::mmio_ops::MmioOps;
+#[cfg(not(feature = "custom-mmio"))]
+use crate::backend::mmio_ops::MmioOps;
 use crate::fields::{ReadOnly, ReadPure, ReadPureWrite, ReadWrite, WriteOnly};
 use core::{
     array,
@@ -949,6 +948,57 @@ impl<'a, T> Iterator for SharedMmioPointerIterator<'a, T> {
     }
 }
 
+impl<T: FromBytes + IntoBytes> UniqueMmioPointer<'_, T> {
+    /// Performs an MMIO read and returns the value.
+    ///
+    /// If `T` is exactly 1, 2, 4 or 8 bytes long and naturally aligned then this will be a single
+    /// operation. Otherwise it will be split into several, reading chunks as large as possible.
+    ///
+    /// Note that this takes `&mut self` rather than `&self` because an MMIO read may cause
+    /// side-effects that change the state of the device.
+    ///
+    /// # Safety
+    ///
+    /// This field must be safe to perform an MMIO read from.
+    pub unsafe fn read_unsafe(&mut self) -> T {
+        // SAFETY: self.regs is always a valid and unique pointer to MMIO address space.
+        unsafe { Ops::read(self.regs) }
+    }
+}
+
+impl<T: Immutable + IntoBytes> UniqueMmioPointer<'_, T> {
+    /// Performs an MMIO write of the given value.
+    ///
+    /// If `T` is exactly 1, 2, 4 or 8 bytes long and naturally aligned then this will be a single
+    /// operation. Otherwise it will be split into several, reading chunks as large as possible.
+    ///
+    /// # Safety
+    ///
+    /// This field must be safe to perform an MMIO write to.
+    pub unsafe fn write_unsafe(&mut self, value: T) {
+        // SAFETY: self.regs is always a valid and unique pointer to MMIO address space.
+        unsafe {
+            Ops::write(self.regs, value);
+        }
+    }
+}
+
+impl<T: FromBytes + IntoBytes> SharedMmioPointer<'_, T> {
+    /// Performs an MMIO read and returns the value.
+    ///
+    /// If `T` is exactly 1, 2, 4 or 8 bytes long and naturally aligned then this will be a single
+    /// operation. Otherwise it will be split into several, reading chunks as large as possible.
+    ///
+    /// # Safety
+    ///
+    /// This field must be safe to perform an MMIO read from, and doing so must not cause any
+    /// side-effects.
+    pub unsafe fn read_unsafe(&self) -> T {
+        // SAFETY: self.regs is always a valid and unique pointer to MMIO address space.
+        unsafe { Ops::read(self.regs) }
+    }
+}
+
 /// Gets a `UniqueMmioPointer` to a field of a type wrapped in a `UniqueMmioPointer`.
 #[macro_export]
 macro_rules! field {
@@ -1524,5 +1574,83 @@ mod tests {
         assert_eq!(iter.next().unwrap().read(), 2);
         assert_eq!(iter.next().unwrap().read(), 3);
         assert_eq!(iter.next(), None);
+    }
+
+    /// 15 bytes = 8 + 4 + 2 + 1, exercises all chunk-size paths in read_slice/write_slice.
+    #[repr(C)]
+    #[derive(Debug, PartialEq, Eq, Clone, Copy, FromBytes, IntoBytes, Immutable)]
+    struct A([u8; 15]);
+
+    const A_VAL: A = A([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]);
+
+    /// 8-aligned buffer large enough to place an `A` (15 bytes) at any byte offset 0..8.
+    #[repr(C, align(8))]
+    struct AlignedBuf([u8; 32]);
+
+    /// Write `A_VAL` to offset `offset` within an 8-aligned buffer, read it back, and verify.
+    /// Different offsets exercise different ramp-up/ramp-down patterns in write_slice/read_slice.
+    fn round_trip_at_offset(offset: usize) {
+        assert!(offset + size_of::<A>() <= 32);
+        let mut buf = AlignedBuf([0u8; 32]);
+
+        let base = buf.0.as_mut_ptr();
+        // SAFETY: offset + 15 <= 32 (asserted above), and base is valid for 32 bytes.
+        let ptr = unsafe { NonNull::new_unchecked(base.add(offset).cast::<A>()) };
+        let actual_align = ptr.as_ptr() as usize % 8;
+        assert_eq!(actual_align, offset % 8);
+
+        // SAFETY: ptr points into our local buffer, which is valid and unique.
+        let mut mmio = unsafe { UniqueMmioPointer::new(ptr) };
+
+        // SAFETY: writing to and reading from our buffer is safe.
+        unsafe { mmio.write_unsafe(A_VAL) };
+        // SAFETY: writing to and reading from our buffer is safe.
+        let readback = unsafe { mmio.read_unsafe() };
+        assert_eq!(readback, A_VAL, "round-trip failed at offset {offset}");
+    }
+
+    #[test]
+    fn unique_read_write_aligned_0() {
+        // 8-aligned: chunks 8 + 4 + 2 + 1
+        round_trip_at_offset(0);
+    }
+
+    #[test]
+    fn unique_read_write_aligned_1() {
+        // offset 1: ramp-up 1 byte, then 8 + 4 + 2
+        round_trip_at_offset(1);
+    }
+
+    #[test]
+    fn unique_read_write_aligned_2() {
+        // offset 2: ramp-up 2 bytes, then 8 + 4 + 1
+        round_trip_at_offset(2);
+    }
+
+    #[test]
+    fn unique_read_write_aligned_3() {
+        // offset 3: ramp-up 1 + 2 + 4 bytes, then 8
+        round_trip_at_offset(3);
+    }
+
+    #[test]
+    fn unique_read_write_aligned_4() {
+        // offset 4: ramp-up 4 bytes, then 8 + 2 + 1
+        round_trip_at_offset(4);
+    }
+
+    #[test]
+    fn unique_read_write_aligned_5() {
+        round_trip_at_offset(5);
+    }
+
+    #[test]
+    fn unique_read_write_aligned_6() {
+        round_trip_at_offset(6);
+    }
+
+    #[test]
+    fn unique_read_write_aligned_7() {
+        round_trip_at_offset(7);
     }
 }
