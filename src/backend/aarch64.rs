@@ -5,7 +5,7 @@
 use crate::backend::mmio_ops::MmioOps;
 
 macro_rules! asm_read {
-    ($ins:literal, $reg:literal, $src:expr) => {{
+    ($ins:literal, $reg:literal, $ty:ty, $src:expr) => {{
         let value;
         // SAFETY: Caller guarantees src is valid and aligned.
         unsafe {
@@ -15,7 +15,7 @@ macro_rules! asm_read {
                 ptr = in(reg) $src,
             );
         }
-        value
+        <$ty>::from_le(value)
     }};
 }
 
@@ -25,7 +25,7 @@ macro_rules! asm_write {
         unsafe {
             core::arch::asm!(
                 concat!($ins, " {value:", $reg, "}, [{ptr}]"),
-                value = in(reg) $value,
+                value = in(reg) $value.to_le(),
                 ptr = in(reg) $dst,
             );
         }
@@ -37,19 +37,19 @@ pub struct Ops;
 
 impl MmioOps for Ops {
     unsafe fn read_u8(src: *const u8) -> u8 {
-        asm_read!("ldrb", "w", src)
+        asm_read!("ldrb", "w", u8, src)
     }
 
     unsafe fn read_u16(src: *const u16) -> u16 {
-        asm_read!("ldrh", "w", src)
+        asm_read!("ldrh", "w", u16, src)
     }
 
     unsafe fn read_u32(src: *const u32) -> u32 {
-        asm_read!("ldr", "w", src)
+        asm_read!("ldr", "w", u32, src)
     }
 
     unsafe fn read_u64(src: *const u64) -> u64 {
-        asm_read!("ldr", "x", src)
+        asm_read!("ldr", "x", u64, src)
     }
 
     unsafe fn write_u8(dst: *mut u8, value: u8) {
